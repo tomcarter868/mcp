@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 
 
 ARM_CONTENT_DISCLAIMER = (
-    "This information is derived from materials available on developer.arm.com and is subject to the "
+    "This information is derived from materials available on an arm.com subdomain and is subject to the "
     "terms and conditions applicable to the original source content. You should refer to the original "
     "materials for the full terms of use. Except where expressly stated in those terms or in a separate "
     "current and valid license from Arm to the information described, no license to any intellectual "
