@@ -11,6 +11,7 @@ Google Cloud Documentation,CC4.0,Google Cloud - Prepare Arm workloads for Standa
 Google Cloud Documentation,CC4.0,Google Cloud - Deploy Autopilot workloads on Arm,https://docs.cloud.google.com/kubernetes-engine/docs/how-to/autopilot-arm-workloads,google cloud; gke; kubernetes; autopilot; arm; c4a; t2a; arm64
 Google Cloud Documentation,CC4.0,Google Cloud - Migrate x86 app to multi-arch with Arm,https://docs.cloud.google.com/kubernetes-engine/docs/tutorials/migrate-x86-to-multi-arch-arm,google cloud; gke; kubernetes; migrate; x86; multi-arch; arm; arm64
 Google Cloud Documentation,CC4.0,Google Cloud - Troubleshooting Arm workloads on GKE,https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/arm-workloads,google cloud; gke; kubernetes; arm; troubleshooting; exec format error; autoscaling
+Arm Documentation,Arm Proprietary,Arm Performix User Guide,https://developer.arm.com/documentation/110163/latest,Arm Performix; Performix; performance analysis; profiling; APX; code hotspots; workload analysis
 Learning Paths,CC4.0,Arm Migration Toolkit,https://learn.arm.com/migration,migration; port; migrate; top-down; bottom-up; methodology
 Install Guides,CC4.0,Install Guide - .NET SDK,https://learn.arm.com/install-guides/dotnet/,.NET SDK; install; build; download
 Install Guides,CC4.0,Install Guide - Anaconda,https://learn.arm.com/install-guides/anaconda/,Anaconda; install; build; download

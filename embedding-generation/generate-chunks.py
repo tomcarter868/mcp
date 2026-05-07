@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import argparse
+import json
 import os
 import re
 import uuid
@@ -29,10 +30,13 @@ from urllib3.util.retry import Retry
 from urllib.parse import parse_qs, urlparse
 
 from document_chunking import (
+    arm_service_url_to_developer_url,
     chunk_parsed_document,
     derive_product,
     derive_version,
+    is_arm_developer_documentation_url,
     normalize_source_url,
+    parse_arm_documentation_api_json,
     parse_document_content,
     source_to_fetch_url,
 )
@@ -875,6 +879,8 @@ def parse_keywords(keywords_value, title=""):
 def create_chunks_for_source(source_url, source_name, doc_type, keywords_value):
     if doc_type == "Ecosystem Dashboard":
         return create_ecosystem_dashboard_chunk(source_url, source_name, keywords_value)
+    if is_arm_developer_documentation_url(source_url):
+        return create_arm_documentation_chunks(source_url, source_name, doc_type, keywords_value)
 
     fetch_url = source_to_fetch_url(source_url)
     response = fetch_with_logging(fetch_url)
@@ -905,6 +911,70 @@ def create_chunks_for_source(source_url, source_name, doc_type, keywords_value):
         )
         for payload in chunk_parsed_document(parsed_document, doc_type=doc_type or "Documentation", keywords=keywords)
     ]
+
+
+def _arm_topic_links(topic):
+    links = []
+    for child in topic.get("topics", []) or []:
+        self_links = child.get("_links", {}).get("self", [])
+        if self_links and self_links[0].get("href"):
+            links.append(self_links[0]["href"])
+        links.extend(_arm_topic_links(child))
+    return links
+
+
+def _arm_metadata_keywords(root_data, keywords_value, source_name):
+    keywords = parse_keywords(keywords_value, source_name)
+    for value in root_data.get("keywords", []) + root_data.get("products", []):
+        if value and value not in keywords:
+            keywords.append(value)
+    return keywords
+
+
+def create_arm_documentation_chunks(source_url, source_name, doc_type, keywords_value):
+    root_response = fetch_with_logging(source_to_fetch_url(source_url))
+    if root_response is None:
+        return []
+
+    root_data = json.loads(root_response.content.decode("utf-8", errors="ignore"))
+    keywords = _arm_metadata_keywords(root_data, keywords_value, source_name)
+    document_title = root_data.get("title") or source_name
+    topic_links = _arm_topic_links(root_data.get("topic", {}))
+    fetch_urls = topic_links or [root_response.url]
+
+    chunks = []
+    for fetch_url in fetch_urls:
+        if fetch_url == root_response.url:
+            response = root_response
+        else:
+            response = fetch_with_logging(fetch_url)
+            if response is None:
+                continue
+
+        display_url = arm_service_url_to_developer_url(response.url, source_url)
+        parsed_document = parse_arm_documentation_api_json(
+            response_content=response.content,
+            source_url=display_url,
+            resolved_url=response.url,
+            fallback_title=document_title,
+        )
+        for payload in chunk_parsed_document(parsed_document, doc_type=doc_type or "Documentation", keywords=keywords):
+            chunks.append(
+                createChunk(
+                    text_snippet=payload["content"],
+                    WEBSITE_url=payload["url"],
+                    keywords=keywords,
+                    title=payload["title"],
+                    heading=payload["heading"],
+                    heading_path=payload["heading_path"],
+                    doc_type=payload["doc_type"],
+                    product=payload["product"],
+                    version=root_data.get("versionLabel") or payload["version"],
+                    resolved_url=payload["resolved_url"],
+                    content_type=payload["content_type"],
+                )
+            )
+    return chunks
 
 
 def chunkSaveAndTrack(url,chunk):
