@@ -146,5 +146,65 @@
     "expected_urls": [
       "https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/arm-workloads"
     ]
+  },
+  {
+    "question": "When should I use Arm Performix, and what kinds of CPU activity, stalls, memory latency, and hardware efficiency problems does it help investigate?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/Get-started-with-performance-analysis-using-Arm-Performix/What-Arm-Performix-does-well?lang=en"
+    ]
+  },
+  {
+    "question": "Before starting with Arm Performix, what must be installed and what target, SSH, elevated privilege, and workload requirements should I confirm?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/Get-started-with-performance-analysis-using-Arm-Performix/Before-you-start?lang=en"
+    ]
+  },
+  {
+    "question": "What is the recommended first Arm Performix run, and how do I use Code Hotspots results to connect a target, run a recipe, read flame graph results, and choose what to do next?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/Get-started-with-performance-analysis-using-Arm-Performix/Recommended-first-run--the-fastest-path-to-insight?lang=en"
+    ]
+  },
+  {
+    "question": "In Arm Performix, what is a recipe and what happens during the record, reformat, and render stages of the recipe lifecycle?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/About-Arm-Performix/Basic-concepts/Recipes/Recipe-lifecycle?lang=en"
+    ]
+  },
+  {
+    "question": "What does the Arm Performix Code Hotspots recipe show, and how should I interpret the top hotspots, flame graphs, function tables, CPU usage, and source line attribution?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/About-Arm-Performix/Basic-concepts/Code-Hotspots-recipe/Interpreting-and-using-the-results?lang=en"
+    ]
+  },
+  {
+    "question": "How does Arm Performix Instruction Mix compare static analysis and dynamic analysis, and when would each approach miss or reveal instruction behavior?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/About-Arm-Performix/Basic-concepts/Instruction-Mix-recipe/Dynamic-analysis?lang=en"
+    ]
+  },
+  {
+    "question": "What does the Arm Performix Memory Access recipe reveal about L1D, L2, LLC, DRAM, local and remote memory, and TLB walk latency by function?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/About-Arm-Performix/Basic-concepts/Memory-Access-recipe/Interpreting-and-using-the-results?lang=en"
+    ]
+  },
+  {
+    "question": "How does the Arm Performix CPU Microarchitecture recipe organize frontend-bound, backend-bound, bad speculation, and retire metrics for top-down analysis?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/About-Arm-Performix/Basic-concepts/CPU-Microarchitecture-recipe?lang=en"
+    ]
+  },
+  {
+    "question": "What does the Arm Performix System Characterization recipe measure for memory latency, memory bandwidth, NUMA effects, and system configuration?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/About-Arm-Performix/Basic-concepts/System-Characterization-recipe?lang=en"
+    ]
+  },
+  {
+    "question": "If Arm Performix reports insufficient PMU counters, why does that matter for recipe metrics and what should I do about profiling tools, virtual machines, or bare metal runs?",
+    "expected_urls": [
+      "https://developer.arm.com/documentation/110163/latest/Known-issues-and-limitations/Resolve-insufficient-PMU-counters-error/What-you-can-do?lang=en"
+    ]
   }
 ]

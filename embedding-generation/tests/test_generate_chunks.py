@@ -18,9 +18,23 @@ The `gc` fixture is provided by conftest.py and gives access to the
 generate_chunks module with reset global state between tests.
 """
 
+import base64
 import csv
+import json
+from types import SimpleNamespace
 
 import pytest
+
+
+def _arm_api_response(title, html):
+    return json.dumps(
+        {
+            "title": title,
+            "topic": {
+                "content": base64.b64encode(html.encode("utf-8")).decode("ascii"),
+            },
+        }
+    ).encode("utf-8")
 
 
 class TestChunkClass:
@@ -556,6 +570,177 @@ class TestCreateChunk:
         chunk2 = gc.createChunk("content", "url", ["key"], "title")
         
         assert chunk1.uuid != chunk2.uuid
+
+
+class TestArmDocumentationParsing:
+    """Tests for Arm developer documentation API parsing and chunk creation."""
+
+    def test_is_arm_developer_documentation_url(self, gc):
+        """Only developer.arm.com documentation pages should use the Arm API path."""
+        assert gc.is_arm_developer_documentation_url(
+            "https://developer.arm.com/documentation/102376/0100"
+        )
+        assert gc.is_arm_developer_documentation_url(
+            " chrome-extension://reader/https:/developer.arm.com/documentation/102376/0100 "
+        )
+
+        assert not gc.is_arm_developer_documentation_url(
+            "https://documentation-service.arm.com/documentation/102376/0100"
+        )
+        assert not gc.is_arm_developer_documentation_url("https://developer.arm.com/tools-and-software")
+        assert not gc.is_arm_developer_documentation_url("https://learn.arm.com/migration")
+
+    def test_parse_arm_documentation_api_json_decodes_html_topic(self, gc):
+        """API JSON content should be base64-decoded and parsed as structured HTML."""
+        response_content = _arm_api_response(
+            "Fallback API Title",
+            """
+            <html>
+              <head><title>Browser Title</title></head>
+              <body>
+                <main>
+                  <h1>Arm API Reference</h1>
+                  <h2>Install</h2>
+                  <p>Install the package and configure the target platform.</p>
+                  <pre>make build</pre>
+                </main>
+              </body>
+            </html>
+            """,
+        )
+
+        parsed = gc.parse_arm_documentation_api_json(
+            response_content=response_content,
+            source_url="https://developer.arm.com/documentation/102376/0100/install",
+            resolved_url="https://documentation-service.arm.com/documentation/102376/0100/install",
+            fallback_title="Fallback Title",
+        )
+
+        assert parsed.display_title == "Arm API Reference"
+        assert parsed.content_type == "html"
+        assert parsed.source_url == "https://developer.arm.com/documentation/102376/0100/install"
+        assert parsed.resolved_url == "https://documentation-service.arm.com/documentation/102376/0100/install"
+        assert len(parsed.sections) == 1
+        assert parsed.sections[0].heading_path == ["Arm API Reference", "Install"]
+        assert parsed.sections[0].blocks[0].text == "Install the package and configure the target platform."
+        assert parsed.sections[0].blocks[1].kind == "code"
+        assert "make build" in parsed.sections[0].blocks[1].text
+
+    def test_parse_arm_documentation_api_json_empty_content(self, gc):
+        """API topics without content should return an empty parsed document."""
+        parsed = gc.parse_arm_documentation_api_json(
+            response_content=json.dumps({"topic": {"content": ""}}).encode("utf-8"),
+            source_url="https://developer.arm.com/documentation/102376/0100",
+            resolved_url="https://documentation-service.arm.com/documentation/102376/0100",
+            fallback_title="Fallback Title",
+        )
+
+        assert parsed.display_title == "Fallback Title"
+        assert parsed.content_type == "html"
+        assert parsed.sections == []
+
+    def test_create_arm_documentation_chunks_fetches_topics_and_maps_metadata(self, gc, monkeypatch):
+        """Arm docs should fetch API topic links and emit developer-facing chunks."""
+        source_url = "https://developer.arm.com/documentation/102376/0100"
+        root_fetch_url = "https://documentation-service.arm.com/documentation/102376/0100"
+        overview_fetch_url = "https://documentation-service.arm.com/documentation/102376/0100/overview?rev=abc"
+        install_fetch_url = "https://documentation-service.arm.com/documentation/102376/0100/install"
+        responses = {
+            root_fetch_url: SimpleNamespace(
+                url=root_fetch_url,
+                content=json.dumps(
+                    {
+                        "title": "Arm Reference Manual",
+                        "versionLabel": "0100",
+                        "keywords": ["SVE"],
+                        "products": ["Cortex-A"],
+                        "topic": {
+                            "topics": [
+                                {
+                                    "_links": {
+                                        "self": [
+                                            {
+                                                "href": overview_fetch_url,
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "topics": [
+                                        {
+                                            "_links": {
+                                                "self": [
+                                                    {
+                                                        "href": install_fetch_url,
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                },
+                            ]
+                        },
+                    }
+                ).encode("utf-8"),
+            ),
+            overview_fetch_url: SimpleNamespace(
+                url=overview_fetch_url,
+                content=_arm_api_response(
+                    "Overview Topic",
+                    """
+                    <main>
+                      <h1>Arm Reference Manual</h1>
+                      <h2>Overview</h2>
+                      <p>This overview explains how Arm systems expose scalable vector extension features.</p>
+                    </main>
+                    """,
+                ),
+            ),
+            install_fetch_url: SimpleNamespace(
+                url=install_fetch_url,
+                content=_arm_api_response(
+                    "Install Topic",
+                    """
+                    <main>
+                      <h1>Arm Reference Manual</h1>
+                      <h2>Install</h2>
+                      <p>Install the Arm compiler package and configure the target CPU for Cortex-A builds.</p>
+                    </main>
+                    """,
+                ),
+            ),
+        }
+        fetched_urls = []
+
+        def fake_fetch(url):
+            fetched_urls.append(url)
+            return responses[url]
+
+        monkeypatch.setattr(gc, "fetch_with_logging", fake_fetch)
+
+        chunks = gc.create_arm_documentation_chunks(
+            source_url=source_url,
+            source_name="Arm Reference Manual",
+            doc_type="Reference",
+            keywords_value="architecture; compiler",
+        )
+
+        assert fetched_urls == [root_fetch_url, overview_fetch_url, install_fetch_url]
+        assert len(chunks) == 2
+        assert {chunk.heading for chunk in chunks} == {"Overview", "Install"}
+        assert all(chunk.title == "Arm Reference Manual" for chunk in chunks)
+        assert all(chunk.doc_type == "Reference" for chunk in chunks)
+        assert all(chunk.product == "Arm" for chunk in chunks)
+        assert all(chunk.version == "0100" for chunk in chunks)
+        assert all(chunk.content_type == "html" for chunk in chunks)
+        assert chunks[0].url == "https://developer.arm.com/documentation/102376/0100/overview"
+        assert chunks[0].resolved_url == overview_fetch_url
+        assert chunks[0].keywords == "architecture, compiler, arm reference manual, sve, cortex-a"
+        assert "Document Title: Arm Reference Manual" in chunks[0].content
+        assert "Heading Path: Overview" in chunks[0].content
+        assert "scalable vector extension" in chunks[0].content
+        assert chunks[1].url == "https://developer.arm.com/documentation/102376/0100/install"
+        assert "target CPU for Cortex-A builds" in chunks[1].content
 
 
 class TestCreateRetrySession:

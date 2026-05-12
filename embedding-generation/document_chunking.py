@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from io import BytesIO
+import base64
+import json
 import math
 import re
 from typing import Dict, Iterable, List, Optional
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 from pypdf import PdfReader
@@ -40,6 +42,8 @@ BOILERPLATE_LINE_PATTERNS = [
         r"^products solutions developers support resources company$",
     )
 ]
+ARM_DOCUMENTATION_SERVICE_HOST = "documentation-service.arm.com"
+ARM_DEVELOPER_HOST = "developer.arm.com"
 
 
 @dataclass
@@ -72,9 +76,37 @@ def normalize_source_url(url: str) -> str:
     return url
 
 
+def is_arm_developer_documentation_url(url: str) -> bool:
+    parsed = urlparse(normalize_source_url(url))
+    return parsed.scheme in {"http", "https"} and parsed.netloc.lower() == ARM_DEVELOPER_HOST and parsed.path.startswith("/documentation/")
+
+
+def arm_developer_url_to_service_url(url: str) -> str:
+    parsed = urlparse(normalize_source_url(url))
+    return urlunparse(parsed._replace(scheme="https", netloc=ARM_DOCUMENTATION_SERVICE_HOST))
+
+
+def arm_service_url_to_developer_url(service_url: str, source_url: str) -> str:
+    service = urlparse(service_url)
+    source = urlparse(normalize_source_url(source_url))
+    path_parts = [part for part in service.path.split("/") if part]
+    source_parts = [part for part in source.path.split("/") if part]
+
+    if len(path_parts) >= 3 and path_parts[0] == "documentation":
+        source_version = source_parts[2] if len(source_parts) >= 3 else path_parts[2]
+        path_parts[2] = source_version
+
+    filtered_query = urlencode(
+        [(key, value) for key, value in parse_qsl(service.query, keep_blank_values=True) if key != "rev"]
+    )
+    return urlunparse(("https", ARM_DEVELOPER_HOST, "/" + "/".join(path_parts), "", filtered_query, service.fragment))
+
+
 def source_to_fetch_url(url: str) -> str:
     """Resolve source URLs into directly fetchable content URLs."""
     url = normalize_source_url(url)
+    if is_arm_developer_documentation_url(url):
+        return arm_developer_url_to_service_url(url)
     if url == "https://learn.arm.com/migration":
         return (
             "https://raw.githubusercontent.com/ArmDeveloperEcosystem/"
@@ -368,6 +400,29 @@ def parse_document_content(
     return parse_markdown(decoded, source_url, resolved_url, fallback_title)
 
 
+def parse_arm_documentation_api_json(
+    response_content: bytes,
+    source_url: str,
+    resolved_url: str,
+    fallback_title: str,
+) -> ParsedDocument:
+    data = json.loads(response_content.decode("utf-8", errors="ignore"))
+    topic = data.get("topic", data)
+    content = topic.get("content", "")
+    if not content:
+        return ParsedDocument(
+            source_url=source_url,
+            resolved_url=resolved_url,
+            display_title=fallback_title,
+            content_type="html",
+            sections=[],
+        )
+
+    html = base64.b64decode(content).decode("utf-8", errors="ignore")
+    title = data.get("title") or fallback_title
+    return parse_html(html, source_url, resolved_url, title)
+
+
 def merge_code_context(blocks: List[Block]) -> List[str]:
     merged: List[str] = []
     i = 0
@@ -480,7 +535,7 @@ def derive_product(title: str, source_url: str, doc_type: str, keywords: Iterabl
         return "AWS Graviton"
     if "ampere" in haystack or "amperecomputing.com" in source_url:
         return "Ampere"
-    if "learn.arm.com" in source_url or "/arm-" in source_url or " arm " in f" {haystack} ":
+    if "learn.arm.com" in source_url or "developer.arm.com" in source_url or "/arm-" in source_url or " arm " in f" {haystack} ":
         return "Arm"
     return clean_text(doc_type) or "Documentation"
 
