@@ -12,11 +12,10 @@ from sentence_transformers import SentenceTransformer
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MCP_LOCAL_DIR = REPO_ROOT / "mcp-local"
-if str(MCP_LOCAL_DIR) not in sys.path:
-    sys.path.insert(0, str(MCP_LOCAL_DIR))
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-from utils.search_utils import build_bm25_index, deduplicate_urls, hybrid_search, load_metadata, load_usearch_index  # noqa: E402
+from arm_kb_search import build_bm25_index, deduplicate_urls, hybrid_search, load_metadata, load_usearch_index  # noqa: E402
 
 
 def sentence_transformer_cache_folder() -> str | None:

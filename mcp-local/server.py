@@ -16,8 +16,8 @@ from fastmcp import FastMCP
 from typing import List, Dict, Any, Optional
 import os
 from sentence_transformers import SentenceTransformer
+from arm_kb_search import build_bm25_index, deduplicate_urls, hybrid_search, load_metadata, load_usearch_index
 from utils.config import METADATA_PATH, USEARCH_INDEX_PATH, MODEL_NAME, SUPPORTED_SCANNERS, DEFAULT_ARCH
-from utils.search_utils import build_bm25_index, deduplicate_urls, hybrid_search, load_metadata, load_usearch_index
 from utils.kb_response import add_disclaimer_to_arm_results
 from utils.docker_utils import check_docker_image_architectures
 from utils.apx import (
